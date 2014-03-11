@@ -69,7 +69,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'suggest-alternative' => false
         );
 
-        $domain = $params['sld'] . '.' . $params['tld'];
+        $domain = strtolower($params['sld'] . '.' . $params['tld']);
 
         $result = $this->_makeGetRequest('/domains/available', $arguments);
         if ($result == false) {
