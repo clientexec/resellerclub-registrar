@@ -216,7 +216,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         $customerId = $this->_lookupCustomerId($params['RegistrantEmailAddress']);
         if (is_a($customerId, 'CE_Error')) {
             CE_Lib::log(4, 'Error creating ResellerClub customer: ' . $customerId->getMessage());
-            throw new Exception('Error creating ResellerClub customer: ' . $customerId->getMessage());
+            throw new CE_Exception('Error creating ResellerClub customer: ' . $customerId->getMessage());
         }
         if ($customerId === false) {
             // Customer doesn't already exist so create one.
@@ -242,7 +242,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                 $customerId = $result;
             } else if (isset($result->status) && $result->status == 'ERROR') {
                 CE_Lib::log(4, 'Error creating ResellerClub customer: ' . $result->message);
-                throw new Exception('Error creating ResellerClub customer: ' . $result->message);
+                throw new CE_Exception('Error creating ResellerClub customer: ' . $result->message);
             } else {
                 CE_Lib::log(4, 'Error creating ResellerClub customer: Unknown Reason');
                 throw new Exception('Error creating ResellerClub customer.');
@@ -297,7 +297,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             $contactId = $result;
         } else if (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub customer contact creation failed with error: ' . $result->message);
-            throw new Exception('Error creating ResellerClub customer contact: ' . $result->message);
+            throw new CE_Exception('Error creating ResellerClub customer contact: ' . $result->message);
         } else {
             CE_Lib::log(4, 'ERROR: ResellerClub customer contact creation failed: Unknown Reason.');
             throw new Exception('Error creating ResellerClub customer contact.');
@@ -347,7 +347,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
         if (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain registration failed with error: ' . $result->message);
-            throw new Exception('Error registering ResellerClub domain: ' . $result->message);
+            throw new CE_Exception('Error registering ResellerClub domain: ' . $result->message);
         } else {
             CE_Lib::log(4, 'ERROR: ResellerClub domain registration failed with error: Unknown Reason.');
             throw new Exception('Error registering ResellerClub domain.');
