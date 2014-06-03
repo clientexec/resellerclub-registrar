@@ -11,49 +11,49 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function getVariables()
     {
         $variables = array(
-            /*T*/'Plugin Name'/*/T*/ => array (
+            lang('Plugin Name') => array (
                                 'type'          =>'hidden',
-                                'description'   =>/*T*/'How CE sees this plugin (not to be confused with the Signup Name)'/*/T*/,
-                                'value'         =>/*T*/'ResellerClub'/*/T*/
+                                'description'   =>lang('How CE sees this plugin (not to be confused with the Signup Name)'),
+                                'value'         =>lang('ResellerClub')
                                ),
-            /*T*/'Reseller ID'/*/T*/ => array(
+            lang('Reseller ID') => array(
                                 'type'          =>'text',
-                                'description'   =>/*T*/'Enter your ResellerClub Reseller ID.  This can be found in your ResellerClub account by going to Settings -> Personal Information -> Primary Profile.  The first field indicates your Reseller ID.'/*/T*/,
+                                'description'   =>lang('Enter your ResellerClub Reseller ID.  This can be found in your ResellerClub account by going to Settings -> Personal Information -> Primary Profile.  The first field indicates your Reseller ID.'),
                                 'value'         =>''
                                ),
-            /*T*/'Password'/*/T*/ => array(
+            lang('Password') => array(
                                 'type'          =>'password',
-                                'description'   =>/*T*/'Enter the password for your ResellerClub reseller account.'/*/T*/,
+                                'description'   =>lang('Enter the password for your ResellerClub reseller account.'),
                                 'value'         =>''
                                ),
-            /*T*/'API Key'/*/T*/ => array(
+            lang('API Key') => array(
                                 'type'          =>'text',
-                                'description'   =>/*T*/'Enter your API Key for your ResellerClub reseller account.  You should use this instead of your password, however you still may use your password instead.'/*/T*/,
+                                'description'   =>lang('Enter your API Key for your ResellerClub reseller account.  You should use this instead of your password, however you still may use your password instead.'),
                                 'value'         =>''
                                ),
-            /*T*/'Use testing server'/*/T*/ => array(
+            lang('Use testing server') => array(
                                 'type'          =>'yesno',
-                                'description'   =>/*T*/'Select Yes if you wish to use the ResellerClub testing environment, so that transactions are not actually made.<br><br><b>Note: </b>You will first need to register for a demo account at<br>http://cp.onlyfordemo.net/servlet/ResellerSignupServlet?&validatenow=false.'/*/T*/,
+                                'description'   =>lang('Select Yes if you wish to use the ResellerClub testing environment, so that transactions are not actually made.<br><br><b>Note: </b>You will first need to register for a demo account at<br>http://cp.onlyfordemo.net/servlet/ResellerSignupServlet?&validatenow=false.'),
                                 'value'         =>0
                                ),
-            /*T*/'Supported Features'/*/T*/  => array(
+            lang('Supported Features')  => array(
                                 'type'          => 'label',
-                                'description'   => '* './*T*/'TLD Lookup'/*/T*/.'<br>* './*T*/'Domain Registration'/*/T*/.' <br>* './*T*/'Existing Domain Importing'/*/T*/.' <br>* './*T*/'Get / Set Nameserver Records'/*/T*/.' <br>* './*T*/'Get / Set Contact Information'/*/T*/.' <br>* './*T*/'Get / Set Registrar Lock'/*/T*/.' <br>* './*T*/'Initiate Domain Transfer'/*/T*/.' <br>',
+                                'description'   => '* '.lang('TLD Lookup').'<br>* '.lang('Domain Registration').' <br>* '.lang('Existing Domain Importing').' <br>* '.lang('Get / Set Nameserver Records').' <br>* '.lang('Get / Set Contact Information').' <br>* '.lang('Get / Set Registrar Lock').' <br>* '.lang('Initiate Domain Transfer').' <br>',
                                 'value'         => ''
                                 ),
-            /*T*/'Actions'/*/T*/ => array (
+            lang('Actions') => array (
                                 'type'          => 'hidden',
-                                'description'   => /*T*/'Current actions that are active for this plugin (when a domain isn\'t registered)'/*/T*/,
+                                'description'   => lang('Current actions that are active for this plugin (when a domain isn\'t registered)'),
                                 'value'         => 'Register'
                                 ),
-            /*T*/'Registered Actions'/*/T*/ => array (
+            lang('Registered Actions') => array (
                                 'type'          => 'hidden',
-                                'description'   => /*T*/'Current actions that are active for this plugin (when a domain is registered)'/*/T*/,
+                                'description'   => lang('Current actions that are active for this plugin (when a domain is registered)'),
                                 'value'         => 'togglePrivacy (Toggle Privacy),DomainTransferWithPopup (Initiate Transfer),Cancel',
                                 ),
-             /*T*/'Registered Actions For Customer'/*/T*/ => array (
+             lang('Registered Actions For Customer') => array (
                                 'type'          => 'hidden',
-                                'description'   => /*T*/'Current actions that are active for this plugin (when a domain is registered)'/*/T*/,
+                                'description'   => lang('Current actions that are active for this plugin (when a domain is registered)'),
                                 'value'         => 'togglePrivacy (Toggle Privacy)',
             )
         );
