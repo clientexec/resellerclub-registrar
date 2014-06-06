@@ -49,7 +49,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             lang('Registered Actions') => array (
                                 'type'          => 'hidden',
                                 'description'   => lang('Current actions that are active for this plugin (when a domain is registered)'),
-                                'value'         => 'togglePrivacy (Toggle Privacy),DomainTransferWithPopup (Initiate Transfer),Cancel',
+                                'value'         => 'Renew (Renew Domain),togglePrivacy (Toggle Privacy),DomainTransferWithPopup (Initiate Transfer),Cancel',
                                 ),
              lang('Registered Actions For Customer') => array (
                                 'type'          => 'hidden',
@@ -178,6 +178,18 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         $orderid = $this->registerDomain($this->buildRegisterParams($userPackage,$params));
         $userPackage->setCustomField("Registrar Order Id",$userPackage->getCustomField("Registrar").'-'.$orderid[1][0]);
         return $userPackage->getCustomField('Domain Name') . ' has been registered.';
+    }
+
+    /**
+     * Renew domain name
+     *
+     * @param array $params
+     */
+    function doRenew($params)
+    {
+        $userPackage = new UserPackage($params['userPackageId']);
+        $orderid = $this->renewDomain($this->buildRenewParams($userPackage,$params));
+        return $userPackage->getCustomField('Domain Name') . ' has been renewed.';
     }
 
 
@@ -354,6 +366,40 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
     }
 
+    function renewDomain($params)
+    {
+        $domain = $params['sld'].".".$params['tld'];
+
+        $generalInformation = $this->getGeneralInfo($params);
+
+        $arguments = array(
+            'order-id' => $generalInformation['id'],
+            'years' => $params['NumYears'],
+            'exp-date' => $generalInformation['endtime'],
+            'years' => $customerId,
+            'exp-date' => $date,
+            'invoice-option' => 'NoInvoice'
+        );
+
+        $result = $this->_makePostRequest('/domains/renew', $arguments);
+
+        if ($result === false) {
+            // Already logged
+            throw new Exception('Error registering ResellerClub domain: A communication problem occurred.');
+        }
+        if (isset($result->status) && $result->status == 'Success') {
+            CE_Lib::log(4, 'ResellerClub domain renewal of ' . $domain . ' successful.  EntityId: ' . $result->entityid);
+            return array(1, array($result->entityid));
+        }
+        if (isset($result->status) && $result->status == 'ERROR') {
+            CE_Lib::log(4, 'ERROR: ResellerClub domain renewal failed with error: ' . $result->message);
+            throw new CE_Exception('Error renewing ResellerClub domain: ' . $result->message);
+        } else {
+            CE_Lib::log(4, 'ERROR: ResellerClub domain renewal failed with error: Unknown Reason.');
+            throw new Exception('Error renewing ResellerClub domain.');
+        }
+    }
+
     function getGeneralInfo($params)
     {
         $params['sld'] = strtolower($params['sld']);
@@ -377,6 +423,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
         if (isset($result->orderid)) {
             $data = array();
+            $data['endtime'] = $result->endtime;
             $data['expiration'] = date('m/d/Y', $result->endtime);
             $data['domain'] = $result->domainname;
             $data['id'] = $result->orderid;
