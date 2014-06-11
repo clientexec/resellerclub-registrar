@@ -376,8 +376,6 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'order-id' => $generalInformation['id'],
             'years' => $params['NumYears'],
             'exp-date' => $generalInformation['endtime'],
-            'years' => $customerId,
-            'exp-date' => $date,
             'invoice-option' => 'NoInvoice'
         );
 
