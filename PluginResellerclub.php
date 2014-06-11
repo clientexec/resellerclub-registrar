@@ -18,7 +18,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                                ),
             lang('Reseller ID') => array(
                                 'type'          =>'text',
-                                'description'   =>lang('Enter your ResellerClub Reseller ID.  This can be found in your ResellerClub account by going to Settings -> Personal Information -> Primary Profile.  The first field indicates your Reseller ID.'),
+                                'description'   =>lang('Enter your ResellerClub Reseller ID.  This can be found in your ResellerClub account by going to your profile link, in the top right corner.'),
                                 'value'         =>''
                                ),
             lang('Password') => array(
