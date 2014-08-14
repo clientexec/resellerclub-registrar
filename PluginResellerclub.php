@@ -38,7 +38,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                                ),
             lang('Supported Features')  => array(
                                 'type'          => 'label',
-                                'description'   => '* '.lang('TLD Lookup').'<br>* '.lang('Domain Registration').' <br>* '.lang('Existing Domain Importing').' <br>* '.lang('Get / Set Nameserver Records').' <br>* '.lang('Get / Set Contact Information').' <br>* '.lang('Get / Set Registrar Lock').' <br>* '.lang('Initiate Domain Transfer').' <br>',
+                                'description'   => '* '.lang('TLD Lookup').'<br>* '.lang('Domain Registration').' <br>* '.lang('Existing Domain Importing').' <br>* '.lang('Get / Set Nameserver Records').' <br>* '.lang('Get / Set Contact Information').' <br>* '.lang('Get / Set Registrar Lock').' <br>* '.lang('Initiate Domain Transfer').' <br>* ' . lang('Automatically Renew Domain'),
                                 'value'         => ''
                                 ),
             lang('Actions') => array (
