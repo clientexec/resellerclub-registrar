@@ -456,6 +456,33 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     function initiateTransfer($params)
     {
+        switch($params['tld']) {
+            case 'co.uk':
+            case 'org.uk':
+            case 'me.uk':
+                $contactType = 'UkContact';
+                break;
+            case 'eu':
+                $contactType = 'EuContact';
+                break;
+            case 'coop':
+                $contactType = 'CoopContact';
+                break;
+            case 'cn':
+                $contactType = 'CnContact';
+                break;
+            case 'co':
+                $contactType = 'CoContact';
+                break;
+            case 'ca':
+                $contactType = 'CaContact';
+                break;
+            default:
+                $contactType = 'Contact';
+                break;
+        }
+
+
         $newCustomer = false;
         $countrycode = $this->_getCountryCode($params['RegistrantCountry']);
         $telno = $this->_validatePhone($params['RegistrantPhone'],$countrycode);
@@ -509,7 +536,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'phone-cc'              => $countrycode,
             'phone'                 => $telno,
             'customer-id'           => $customerId,
-            'type'                  => 'Contact', // Docs give no indication what the other options are used for?
+            'type'                  => $contactType,
         );
 
        // Handle any extra attributes needed
@@ -532,13 +559,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             }
         }
 
-
-
-
-
         $result = $this->_makePostRequest('/contacts/add', $arguments);
-
-
 
         if (is_numeric($result)) {
             CE_Lib::log(4, 'ResellerClub contact id created (or retrieved) with a value of ' . $result);
