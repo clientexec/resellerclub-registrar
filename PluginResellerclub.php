@@ -579,9 +579,9 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'domain-name'           => $domain,
             'customer-id'           => $customerId,
             'reg-contact-id'        => $contactId,
-            'admin-contact-id'      => $contactId,
-            'tech-contact-id'       => $contactId,
-            'billing-contact-id'    => $contactId,
+            'admin-contact-id'      => ($contactType == 'UkContact' )? -1 : $contactId,
+            'tech-contact-id'       => ($contactType == 'UkContact' )? -1 : $contactId,
+            'billing-contact-id'    => ($contactType == 'UkContact' )? -1 : $contactId,
             'invoice-option'        => 'NoInvoice',
             'protect-privacy'       => false, // needs support in the future
             'auth-code'             => $params['eppCode']
