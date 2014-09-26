@@ -16,6 +16,11 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                                 'description'   =>lang('How CE sees this plugin (not to be confused with the Signup Name)'),
                                 'value'         =>lang('ResellerClub')
                                ),
+            lang('Use testing server') => array(
+                                'type'          =>'yesno',
+                                'description'   =>lang('Select Yes if you wish to use the ResellerClub testing environment, so that transactions are not actually made.<br><br><b>Note: </b>You will first need to register for a demo account at<br>http://cp.onlyfordemo.net/servlet/ResellerSignupServlet?&validatenow=false.'),
+                                'value'         =>0
+                               ),
             lang('Reseller ID') => array(
                                 'type'          =>'text',
                                 'description'   =>lang('Enter your ResellerClub Reseller ID.  This can be found in your ResellerClub account by going to your profile link, in the top right corner.'),
@@ -30,11 +35,6 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                                 'type'          =>'text',
                                 'description'   =>lang('Enter your API Key for your ResellerClub reseller account.  You should use this instead of your password, however you still may use your password instead.'),
                                 'value'         =>''
-                               ),
-            lang('Use testing server') => array(
-                                'type'          =>'yesno',
-                                'description'   =>lang('Select Yes if you wish to use the ResellerClub testing environment, so that transactions are not actually made.<br><br><b>Note: </b>You will first need to register for a demo account at<br>http://cp.onlyfordemo.net/servlet/ResellerSignupServlet?&validatenow=false.'),
-                                'value'         =>0
                                ),
             lang('Supported Features')  => array(
                                 'type'          => 'label',
