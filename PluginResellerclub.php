@@ -195,31 +195,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     function registerDomain($params)
     {
-        switch($params['tld']) {
-            case 'co.uk':
-            case 'org.uk':
-            case 'me.uk':
-                $contactType = 'UkContact';
-                break;
-            case 'eu':
-                $contactType = 'EuContact';
-                break;
-            case 'coop':
-                $contactType = 'CoopContact';
-                break;
-            case 'cn':
-                $contactType = 'CnContact';
-                break;
-            case 'co':
-                $contactType = 'CoContact';
-                break;
-            case 'ca':
-                $contactType = 'CaContact';
-                break;
-            default:
-                $contactType = 'Contact';
-                break;
-        }
+        $contactType = $this->getContactType($params);
 
         $newCustomer = false;
         $countrycode = $this->_getCountryCode($params['RegistrantCountry']);
@@ -274,7 +250,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'phone-cc'              => $countrycode,
             'phone'                 => $telno,
             'customer-id'           => $customerId,
-            'type'                  => $contactType, // Docs give no indication what the other options are used for?
+            'type'                  => $contactType,
         );
         // Handle any extra attributes needed
         if (isset($params['ExtendedAttributes']) && is_array($params['ExtendedAttributes'])) {
@@ -340,9 +316,9 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'ns'                    => $nameservers,
             'customer-id'           => $customerId,
             'reg-contact-id'        => $contactId,
-            'admin-contact-id'      => ($contactType == 'Contact' || $contactType == 'CaContact' )? $contactId : -1,
-            'tech-contact-id'       => ($contactType == 'Contact' || $contactType == 'CaContact' )? $contactId : -1,
-            'billing-contact-id'    => ($contactType == 'Contact')? $contactId : -1,
+            'admin-contact-id'      => $this->getAdminContactId($params['tld'], $contactId),
+            'tech-contact-id'       => $this->getTechContactId($params['tld'], $contactId),
+            'billing-contact-id'    => $this->getBillingContactId($params['tld'], $contactId),
             'invoice-option'        => 'NoInvoice',
             'protect-privacy'       => false, // needs support in the future
         );
@@ -357,9 +333,16 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             CE_Lib::log(4, 'ResellerClub domain registration of ' . $domain . ' successful.  EntityId: ' . $result->entityid);
             return array(1, array($result->entityid));
         }
-        if (isset($result->status) && $result->status == 'ERROR') {
-            CE_Lib::log(4, 'ERROR: ResellerClub domain registration failed with error: ' . $result->message);
-            throw new CE_Exception('Error registering ResellerClub domain: ' . $result->message);
+        if (isset($result->status) && strtolower($result->status) == 'error') {
+            if ( isset($result->message) ) {
+                $errorMessage = $result->message;
+            }
+            if ( isset($result->error) ) {
+                $errorMessage = $result->error;
+            }
+
+            CE_Lib::log(4, 'ERROR: ResellerClub domain registration failed with error: ' . $errorMessage);
+            throw new CE_Exception('Error registering ResellerClub domain: ' . $errorMessage);
         } else {
             CE_Lib::log(4, 'ERROR: ResellerClub domain registration failed with error: Unknown Reason.');
             throw new Exception('Error registering ResellerClub domain.');
@@ -456,32 +439,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     function initiateTransfer($params)
     {
-        switch($params['tld']) {
-            case 'co.uk':
-            case 'org.uk':
-            case 'me.uk':
-                $contactType = 'UkContact';
-                break;
-            case 'eu':
-                $contactType = 'EuContact';
-                break;
-            case 'coop':
-                $contactType = 'CoopContact';
-                break;
-            case 'cn':
-                $contactType = 'CnContact';
-                break;
-            case 'co':
-                $contactType = 'CoContact';
-                break;
-            case 'ca':
-                $contactType = 'CaContact';
-                break;
-            default:
-                $contactType = 'Contact';
-                break;
-        }
-
+        $contactType = $this->getContactType($params);
 
         $newCustomer = false;
         $countrycode = $this->_getCountryCode($params['RegistrantCountry']);
@@ -579,16 +537,15 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'domain-name'           => $domain,
             'customer-id'           => $customerId,
             'reg-contact-id'        => $contactId,
-            'admin-contact-id'      => ($contactType == 'UkContact' )? -1 : $contactId,
-            'tech-contact-id'       => ($contactType == 'UkContact' )? -1 : $contactId,
-            'billing-contact-id'    => ($contactType == 'UkContact' )? -1 : $contactId,
+            'admin-contact-id'      => $this->getAdminContactId($params['tld'], $contactId),
+            'tech-contact-id'       => $this->getTechContactId($params['tld'], $contactId),
+            'billing-contact-id'    => $this->getBillingContactId($params['tld'], $contactId),
             'invoice-option'        => 'NoInvoice',
             'protect-privacy'       => false, // needs support in the future
             'auth-code'             => $params['eppCode']
         );
 
         $result = $this->_makePostRequest('/domains/transfer', $arguments);
-
 
         if ($result === false) {
             // Already logged
@@ -1315,5 +1272,83 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function disablePrivateRegistration($parmas)
     {
         throw new MethodNotImplemented('Method disablePrivateRegistration has not been implemented yet.');
+    }
+
+    private function getAdminContactId($tld, $contactId)
+    {
+        switch ( $tld ) {
+            case 'eu':
+            case 'nz':
+            case 'ru':
+            case 'uk':
+            case 'co.uk':
+            case 'org.uk':
+            case 'me.uk':
+                return -1;
+        }
+        return $contactId;
+    }
+
+    private function getTechContactId($tld, $contactId)
+    {
+        // Tech & Admin have the same restrictions.
+        return $this->getAdminContactId($tld, $contactId);
+    }
+
+    private function getBillingContactId($tld, $contactId)
+    {
+        switch ( $tld ) {
+            case 'berlin':
+            case 'ca':
+            case 'eu':
+            case 'nl':
+            case 'nz':
+            case 'ru':
+            case 'co.uk':
+            case 'org.uk':
+            case 'me.uk':
+            case 'uk':
+                return -1;
+        }
+        return $contactId;
+    }
+
+    private function getContactType($params)
+    {
+        switch($params['tld']) {
+            case 'ca':
+                $contactType = 'CaContact';
+                break;
+            case 'cn':
+                $contactType = 'CnContact';
+                break;
+            case 'co':
+                $contactType = 'CoContact';
+                break;
+            case 'de':
+                $contactType = 'DeContact';
+                break;
+            case 'es':
+                $contactType = 'EsContact';
+                break;
+            case 'eu':
+                $contactType = 'EuContact';
+                break;
+            case 'ru':
+                $contactType = 'RuContact';
+                break;
+            case 'co.uk':
+            case 'org.uk':
+            case 'me.uk':
+                $contactType = 'UkContact';
+                break;
+            case 'coop':
+                $contactType = 'CoopContact';
+                break;
+            default:
+                $contactType = 'Contact';
+                break;
+        }
+        return $contactType;
     }
 }
