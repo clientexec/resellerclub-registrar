@@ -264,6 +264,12 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                 $arguments['attr-name3'] = 'AgreementValue';
                 $arguments['attr-value3'] = $params['ExtendedAttributes']['cira_agreement_value'];
 
+            } else if ( $params['tld'] == 'us' ) {
+                $arguments['attr-name1'] = 'purpose';
+                $arguments['attr-value1'] = $params['ExtendedAttributes']['us_purpose'];
+
+                $arguments['attr-name2'] = 'category';
+                $arguments['attr-value2'] = $params['ExtendedAttributes']['us_nexus'];
 
             } else {
                 $i = 0;
