@@ -49,12 +49,12 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             lang('Registered Actions') => array (
                                 'type'          => 'hidden',
                                 'description'   => lang('Current actions that are active for this plugin (when a domain is registered)'),
-                                'value'         => 'Renew (Renew Domain),togglePrivacy (Toggle Privacy),DomainTransferWithPopup (Initiate Transfer),Cancel',
+                                'value'         => 'Renew (Renew Domain),DomainTransferWithPopup (Initiate Transfer),Cancel',
                                 ),
              lang('Registered Actions For Customer') => array (
                                 'type'          => 'hidden',
                                 'description'   => lang('Current actions that are active for this plugin (when a domain is registered)'),
-                                'value'         => 'togglePrivacy (Toggle Privacy)',
+                                'value'         => '',
             )
         );
 
@@ -316,6 +316,11 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             }
         }
 
+        $purchasePrivacy = false;
+        if ( isset($params['package_addons']['IDPROTECT']) && $params['package_addons']['IDPROTECT'] == 1 ) {
+            $purchasePrivacy = true;
+        }
+
         $arguments = array(
             'domain-name'           => $domain,
             'years'                 => $params['NumYears'],
@@ -326,7 +331,8 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'tech-contact-id'       => $this->getTechContactId($params['tld'], $contactId),
             'billing-contact-id'    => $this->getBillingContactId($params['tld'], $contactId),
             'invoice-option'        => 'NoInvoice',
-            'protect-privacy'       => false, // needs support in the future
+            'purchase-privacy'      => $purchasePrivacy,
+            'protect-privacy'       => $purchasePrivacy
         );
 
         $result = $this->_makePostRequest('/domains/register', $arguments);
