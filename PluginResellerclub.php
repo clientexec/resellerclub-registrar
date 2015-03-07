@@ -509,36 +509,34 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'type'                  => $contactType,
         );
 
-       // Handle any extra attributes needed
-        if (isset($params['ExtendedAttributes']) && is_array($params['ExtendedAttributes'])) {
-            $i = 1;
-			
-			if ( $params['tld'] == 'ca' )  {
-				$arguments['attr-name1'] = 'CPR';
-				$arguments['attr-value1'] = $params['ExtendedAttributes']['cira_legal_type'];
+        if ( $params['tld'] == 'ca' )  {
+            $arguments['attr-name1'] = 'CPR';
+            $arguments['attr-value1'] = $params['ExtendedAttributes']['cira_legal_type'];
 
-				$arguments['attr-name2'] = 'AgreementVersion';
-				$arguments['attr-value2'] = $params['ExtendedAttributes']['cira_agreement_version'];
+            $arguments['attr-name2'] = 'AgreementVersion';
+            $arguments['attr-value2'] = $params['ExtendedAttributes']['cira_agreement_version'];
 
-				$arguments['attr-name3'] = 'AgreementValue';
-				$arguments['attr-value3'] = $params['ExtendedAttributes']['cira_agreement_value'];
-			} else {
-				foreach ($params['ExtendedAttributes'] as $name => $value) {
-					// only pass extended attributes if they have a value.
-					if ( $value != '' ) {
-						if ( $name == 'us_nexus' ) {
-							$name = 'category';
-						}
-						if ( $name == 'us_purpose' ) {
-							$name = 'purpose';
-						}
+            $arguments['attr-name3'] = 'AgreementValue';
+            $arguments['attr-value3'] = $params['ExtendedAttributes']['cira_agreement_value'];
+        } else if ( $params['tld'] == 'us' ) {
+            $arguments['attr-name1'] = 'purpose';
+            $arguments['attr-value1'] = $params['ExtendedAttributes']['us_purpose'];
 
-						$arguments['attr-name' . $i] = $name;
-						$arguments['attr-value' . $i] = $value;
-						$i++;
-					}
-				}
-			}
+            $arguments['attr-name2'] = 'category';
+            $arguments['attr-value2'] = $params['ExtendedAttributes']['us_nexus'];
+        } else {
+            // Handle any extra attributes needed
+            if (isset($params['ExtendedAttributes']) && is_array($params['ExtendedAttributes'])) {
+                $i = 1;
+                foreach ($params['ExtendedAttributes'] as $name => $value) {
+                    // only pass extended attributes if they have a value.
+                    if ( $value != '' ) {
+                        $arguments['attr-name' . $i] = $name;
+                        $arguments['attr-value' . $i] = $value;
+                        $i++;
+                    }
+                }
+            }
         }
 
         $result = $this->_makePostRequest('/contacts/add', $arguments);
@@ -581,8 +579,6 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             CE_Lib::log(4, 'ResellerClub domain transfer of ' . $domain . ' successful.  EntityId: ' . $result->entityid);
             return $result->entityid;
         }
-
-
         else if (isset($result->status) && strtolower($result->status) == 'error') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->error);
             throw new Exception('Error transfering ResellerClub domain: ' . $result->error);
