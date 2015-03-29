@@ -1181,7 +1181,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
         if (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub error occurred while looking up domain id for ' . $domain . '.  Error: ' . $result->message);
-            throw new Exception('An error occurred while connecting to ResellerClub.  Error: ' . $result->message);
+            throw new CE_Exception('An error occurred while connecting to ResellerClub.  Error: ' . $result->message);
         }
         CE_Lib::log(4, 'ERROR: ResellerClub error occurred while looking up domain id for ' . $domain . '.  Error: Unknown Error.');
         throw new Exception('An error occurred while connecting to ResellerClub.  Error: Unknown');
