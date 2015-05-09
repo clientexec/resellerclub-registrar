@@ -581,13 +581,13 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
         else if (isset($result->status) && strtolower($result->status) == 'error') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->error);
-            throw new Exception('Error transfering ResellerClub domain: ' . $result->error);
+            throw new CE_Exception('Error transfering ResellerClub domain: ' . $result->error);
         } else if ( isset($result->status) && strtolower($result->status) == 'failed') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->actiontypedesc);
-            throw new Exception('Error transfering ResellerClub domain: ' . $result->actiontypedesc);
+            throw new CE_Exception('Error transfering ResellerClub domain: ' . $result->actiontypedesc);
         } else {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: Unknown Reason.');
-            throw new Exception('Error transfering ResellerClub domain.');
+            throw new CE_Exception('Error transfering ResellerClub domain.');
         }
     }
 
