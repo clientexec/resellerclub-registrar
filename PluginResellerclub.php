@@ -1,13 +1,21 @@
 <?php
 require_once 'modules/admin/models/RegistrarPlugin.php';
 require_once 'library/CE/NE_Network.php';
-require_once 'modules/domains/models/ICanImportDomains.php';
 
 /**
 * @package Plugins
 */
-class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
+class PluginResellerclub extends RegistrarPlugin
 {
+
+    public $features = [
+        'nameSuggest' => false,
+        'importDomains' => true,
+        'importPrices' => false,
+    ];
+
+    private $recordTypes = ['A', 'AAAA', 'MX', 'CNAME', 'TXT'];
+
     function getVariables()
     {
         $variables = array(
@@ -63,43 +71,55 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     function checkDomain($params)
     {
+
+        if (isset($params['namesuggest'])) {
+            array_unshift($params['namesuggest'], $params['tld']);
+            $tlds = $params['namesuggest'];
+            $suggestAlternative = true;
+        } else {
+            $tlds = $params['tld'];
+            $suggestAlternative = false;
+        }
         $arguments = array(
             'domain-name'         => $params['sld'],
-            'tlds'                => $params['tld'],
-            'suggest-alternative' => false
+            'tlds'                => $tlds,
+            'suggest-alternative' => $suggestAlternative
         );
 
         $domain = strtolower($params['sld'] . '.' . $params['tld']);
-
-        $result = $this->_makeGetRequest('/domains/available', $arguments);
-        if ($result == false) {
-            $status = 5;
-        }
-        else if (isset($result->status) && $result->status == 'ERROR') {
-            CE_Lib::log(4, 'ERROR: ResellerClub check domain failed with error: ' . $result->message);
-            $status = 2;
-        }
-        else if ($result->$domain->status == 'regthroughus' || $result->$domain->status == 'regthroughothers') {
-            CE_Lib::log(4, 'ResellerClub check domain result for domain ' . $domain . ': Registered');
-            $status = 1;
-        }
-        else if ($result->$domain->status == 'available') {
-            CE_Lib::log(4, 'ResellerClub check domain result for domain ' . $domain . ': Available');
-            $status = 0;
-        } else {
-            CE_Lib::log(4, 'ERROR: ResellerClub check domain failed.');
-            $status = 5;
-        }
         $domains = array();
-        $domains[] = array('tld' => $params['tld'], 'domain' => $params['sld'], 'status' => $status);
-        return array("result"=>$domains);
+        $results = $this->_makeGetRequest('/domains/available', $arguments);
+        if ($results == false) {
+            $status = 5;
+            $domains[] = array('tld' => $params['tld'], 'domain' => $params['sld'], 'status' => $status);
+        } else {
+            $domainNameGateway = new DomainNameGateway();
+            foreach ($results as $domain => $result) {
+                if (isset($result->status) && $result->status == 'ERROR') {
+                    CE_Lib::log(4, 'ERROR: ResellerClub check domain failed with error: ' . $result->message);
+                    $status = 2;
+                } elseif ($result->status == 'regthroughus' || $result->status == 'regthroughothers') {
+                    CE_Lib::log(4, 'ResellerClub check domain result for domain ' . $domain . ': Registered');
+                    $status = 1;
+                } elseif ($result->status == 'available') {
+                    CE_Lib::log(4, 'ResellerClub check domain result for domain ' . $domain . ': Available');
+                    $status = 0;
+                } else {
+                    CE_Lib::log(4, 'ERROR: ResellerClub check domain failed.');
+                    $status = 5;
+                }
+                $domain = $domainNameGateway->splitDomain($domain);
+                $domains[] = array('tld' => $domain[1], 'domain' => $domain[0], 'status' => $status);
+            }
+        }
+        return array('result' => $domains);
     }
 
 
     function doTogglePrivacy($params)
     {
         $userPackage = new UserPackage($params['userPackageId']);
-        $status = $this->togglePrivacy($this->buildRegisterParams($userPackage,$params));
+        $status = $this->togglePrivacy($this->buildRegisterParams($userPackage, $params));
         return "Turned privacy {$status} for " . $userPackage->getCustomField('Domain Name') . '.';
     }
 
@@ -124,10 +144,10 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         if ($result === false) {
             throw new Exception('A connection issued occurred while connecting to ResellerClub.', EXCEPTION_CODE_CONNECTION_ISSUE);
         }
-        if ( isset($result->isprivacyprotected) ) {
+        if (isset($result->isprivacyprotected)) {
             $privacyStatus = $result->isprivacyprotected;
 
-            if ( $privacyStatus == 'false' ) {
+            if ($privacyStatus == 'false') {
                 $toggled = 'true';
             } else {
                 $toggled = 'false';
@@ -146,17 +166,17 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             if (isset($result->status) && strtolower($result->status) == 'error') {
                 CE_Lib::log(4, 'Error toggling privacy protection: ' . $result->message);
                 throw new Exception('Error toggling privacy protection: ' . $result->message);
-            } else if ( isset($result->actionstatus) && strtolower($result->actionstatus) == 'success' ) {
-                if ( $toggled == 'true' ) {
+            } elseif (isset($result->actionstatus) && strtolower($result->actionstatus) == 'success') {
+                if ($toggled == 'true') {
                     return 'on';
                 } else {
                     return 'off';
                 }
-            }  else {
+            } else {
                 CE_Lib::log(4, 'Error toggling privacy protection: Unknown Reason');
                 throw new Exception('Error toggling privacy protection.');
             }
-        }  else if (isset($result->status) && $result->status == 'ERROR') {
+        } elseif (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain details fetch failed with error: ' . $result->message);
             throw new Exception('Error fetching ResellerClub domain details.: ' . $result->message);
         } else {
@@ -164,8 +184,6 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             throw new Exception('Error fetching ResellerClub domain details.');
         }
     }
-
-
 
     /**
      * Register domain name
@@ -175,8 +193,8 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function doRegister($params)
     {
         $userPackage = new UserPackage($params['userPackageId']);
-        $orderid = $this->registerDomain($this->buildRegisterParams($userPackage,$params));
-        $userPackage->setCustomField("Registrar Order Id",$userPackage->getCustomField("Registrar").'-'.$orderid[1][0]);
+        $orderid = $this->registerDomain($this->buildRegisterParams($userPackage, $params));
+        $userPackage->setCustomField("Registrar Order Id", $userPackage->getCustomField("Registrar").'-'.$orderid[1][0]);
         return $userPackage->getCustomField('Domain Name') . ' has been registered.';
     }
 
@@ -188,7 +206,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function doRenew($params)
     {
         $userPackage = new UserPackage($params['userPackageId']);
-        $orderid = $this->renewDomain($this->buildRenewParams($userPackage,$params));
+        $orderid = $this->renewDomain($this->buildRenewParams($userPackage, $params));
         return $userPackage->getCustomField('Domain Name') . ' has been renewed.';
     }
 
@@ -199,8 +217,10 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
         $newCustomer = false;
         $countrycode = $this->_getCountryCode($params['RegistrantCountry']);
-        $telno = $this->_validatePhone($params['RegistrantPhone'],$countrycode);
-        if ($params['RegistrantOrganizationName'] == "") $params['RegistrantOrganizationName'] = "N/A";
+        $telno = $this->_validatePhone($params['RegistrantPhone'], $countrycode);
+        if ($params['RegistrantOrganizationName'] == "") {
+            $params['RegistrantOrganizationName'] = "N/A";
+        }
         $customerId = $this->_lookupCustomerId($params['RegistrantEmailAddress']);
         if (is_a($customerId, 'CE_Error')) {
             CE_Lib::log(4, 'Error creating ResellerClub customer: ' . $customerId->getMessage());
@@ -228,7 +248,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
             if (is_numeric($result)) {
                 $customerId = $result;
-            } else if (isset($result->status) && $result->status == 'ERROR') {
+            } elseif (isset($result->status) && $result->status == 'ERROR') {
                 CE_Lib::log(4, 'Error creating ResellerClub customer: ' . $result->message);
                 throw new CE_Exception('Error creating ResellerClub customer: ' . $result->message);
             } else {
@@ -254,28 +274,32 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         );
         // Handle any extra attributes needed
         if (isset($params['ExtendedAttributes']) && is_array($params['ExtendedAttributes'])) {
-            if ( $params['tld'] == 'ca' )  {
+            if ($params['tld'] == 'ca') {
                 $arguments['attr-name1'] = 'CPR';
                 $arguments['attr-value1'] = $params['ExtendedAttributes']['cira_legal_type'];
+
+                // If Corporation, the name should be blank.
+                if ($arguments['attr-value1'] == 'CCO') {
+                    $arguments['name'] = $params['RegistrantOrganizationName'];
+                    $arguments['company'] = 'N/A';
+                }
 
                 $arguments['attr-name2'] = 'AgreementVersion';
                 $arguments['attr-value2'] = $params['ExtendedAttributes']['cira_agreement_version'];
 
                 $arguments['attr-name3'] = 'AgreementValue';
                 $arguments['attr-value3'] = $params['ExtendedAttributes']['cira_agreement_value'];
-
-            } else if ( $params['tld'] == 'us' ) {
+            } elseif ($params['tld'] == 'us') {
                 $arguments['attr-name1'] = 'purpose';
                 $arguments['attr-value1'] = $params['ExtendedAttributes']['us_purpose'];
 
                 $arguments['attr-name2'] = 'category';
                 $arguments['attr-value2'] = $params['ExtendedAttributes']['us_nexus'];
-
             } else {
                 $i = 0;
                 foreach ($params['ExtendedAttributes'] as $name => $value) {
                     // only pass extended attributes if they have a value.
-                    if ( $value != '' ) {
+                    if ($value != '') {
                         $arguments['attr-name' . $i] = $name;
                         $arguments['attr-value' . $i] = $value;
                         $i++;
@@ -289,7 +313,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         if (is_numeric($result)) {
             CE_Lib::log(4, 'ResellerClub contact id created (or retrieved) with a value of ' . $result);
             $contactId = $result;
-        } else if (isset($result->status) && $result->status == 'ERROR') {
+        } elseif (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub customer contact creation failed with error: ' . $result->message);
             throw new CE_Exception('Error creating ResellerClub customer contact: ' . $result->message);
         } else {
@@ -317,7 +341,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
 
         $purchasePrivacy = false;
-        if ( isset($params['package_addons']['IDPROTECT']) && $params['package_addons']['IDPROTECT'] == 1 ) {
+        if (isset($params['package_addons']['IDPROTECT']) && $params['package_addons']['IDPROTECT'] == 1) {
             $purchasePrivacy = true;
         }
 
@@ -346,10 +370,10 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             return array(1, array($result->entityid));
         }
         if (isset($result->status) && strtolower($result->status) == 'error') {
-            if ( isset($result->message) ) {
+            if (isset($result->message)) {
                 $errorMessage = $result->message;
             }
-            if ( isset($result->error) ) {
+            if (isset($result->error)) {
                 $errorMessage = $result->error;
             }
 
@@ -428,6 +452,9 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
         if (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain details fetch failed with error: ' . $result->message);
+            if ($result->message == 'Access Denied: You are not authorized to perform this action') {
+                throw new Exception($result->message, EXCEPTION_CODE_CONNECTION_ISSUE);
+            }
             throw new Exception('Error fetching ResellerClub domain details.: ' . $result->message);
         } else {
             CE_Lib::log(4, 'ERROR: ResellerClub domain details fetch failed with error');
@@ -443,20 +470,26 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function doDomainTransferWithPopup($params)
     {
         $userPackage = new UserPackage($params['userPackageId']);
-        $transferid = $this->initiateTransfer($this->buildTransferParams($userPackage,$params));
-        $userPackage->setCustomField("Registrar Order Id",$userPackage->getCustomField("Registrar").'-'.$transferid);
+        $transferid = $this->initiateTransfer($this->buildTransferParams($userPackage, $params));
+        $userPackage->setCustomField("Registrar Order Id", $userPackage->getCustomField("Registrar").'-'.$transferid);
         $userPackage->setCustomField('Transfer Status', $transferid);
         return "Transfer of has been initiated.";
     }
 
     function initiateTransfer($params)
     {
+        if ($params['eppCode'] == '') {
+            throw new Exception('Can not start transfer with no EPP Code.');
+        }
+
         $contactType = $this->getContactType($params);
 
         $newCustomer = false;
         $countrycode = $this->_getCountryCode($params['RegistrantCountry']);
-        $telno = $this->_validatePhone($params['RegistrantPhone'],$countrycode);
-        if ($params['RegistrantOrganizationName'] == "") $params['RegistrantOrganizationName'] = "N/A";
+        $telno = $this->_validatePhone($params['RegistrantPhone'], $countrycode);
+        if ($params['RegistrantOrganizationName'] == "") {
+            $params['RegistrantOrganizationName'] = "N/A";
+        }
         $customerId = $this->_lookupCustomerId($params['RegistrantEmailAddress']);
         if (is_a($customerId, 'CE_Error')) {
             CE_Lib::log(4, 'Error creating ResellerClub customer: ' . $customerId->getMessage());
@@ -484,7 +517,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
             if (is_numeric($result)) {
                 $customerId = $result;
-            } else if (isset($result->status) && $result->status == 'ERROR') {
+            } elseif (isset($result->status) && $result->status == 'ERROR') {
                 CE_Lib::log(4, 'Error creating ResellerClub customer: ' . $result->message);
                 throw new Exception('Error creating ResellerClub customer: ' . $result->message);
             } else {
@@ -509,7 +542,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'type'                  => $contactType,
         );
 
-        if ( $params['tld'] == 'ca' )  {
+        if ($params['tld'] == 'ca') {
             $arguments['attr-name1'] = 'CPR';
             $arguments['attr-value1'] = $params['ExtendedAttributes']['cira_legal_type'];
 
@@ -518,7 +551,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
             $arguments['attr-name3'] = 'AgreementValue';
             $arguments['attr-value3'] = $params['ExtendedAttributes']['cira_agreement_value'];
-        } else if ( $params['tld'] == 'us' ) {
+        } elseif ($params['tld'] == 'us') {
             $arguments['attr-name1'] = 'purpose';
             $arguments['attr-value1'] = $params['ExtendedAttributes']['us_purpose'];
 
@@ -530,7 +563,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
                 $i = 1;
                 foreach ($params['ExtendedAttributes'] as $name => $value) {
                     // only pass extended attributes if they have a value.
-                    if ( $value != '' ) {
+                    if ($value != '') {
                         $arguments['attr-name' . $i] = $name;
                         $arguments['attr-value' . $i] = $value;
                         $i++;
@@ -544,7 +577,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         if (is_numeric($result)) {
             CE_Lib::log(4, 'ResellerClub contact id created (or retrieved) with a value of ' . $result);
             $contactId = $result;
-        } else if (isset($result->status) && $result->status == 'ERROR') {
+        } elseif (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub customer contact creation failed with error: ' . $result->message);
             throw new Exception('Error creating ResellerClub customer contact: ' . $result->message);
         } else {
@@ -578,11 +611,10 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         if (isset($result->status) && strtolower($result->status) == 'adminapproved' || strtolower($result->status) == 'success') {
             CE_Lib::log(4, 'ResellerClub domain transfer of ' . $domain . ' successful.  EntityId: ' . $result->entityid);
             return $result->entityid;
-        }
-        else if (isset($result->status) && strtolower($result->status) == 'error') {
+        } elseif (isset($result->status) && strtolower($result->status) == 'error') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->error);
             throw new CE_Exception('Error transfering ResellerClub domain: ' . $result->error);
-        } else if ( isset($result->status) && strtolower($result->status) == 'failed') {
+        } elseif (isset($result->status) && strtolower($result->status) == 'failed') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->actiontypedesc);
             throw new CE_Exception('Error transfering ResellerClub domain: ' . $result->actiontypedesc);
         } else {
@@ -621,22 +653,21 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             if (isset($result->status) && strtolower($result->status) == 'error') {
                 CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->error);
                 throw new Exception('Error transfering ResellerClub domain: ' . $result->error);
-            }
-            else if ( isset($result->status) && strtolower($result->status) == 'failed') {
+            } elseif (isset($result->status) && strtolower($result->status) == 'failed') {
                 CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->actiontypedesc);
                 throw new Exception('Error transfering ResellerClub domain: ' . $result->actiontypedesc);
             }
             $status = $result->{1}->actionstatusdesc;
-            if ( $status == 'Domain Transfered Successfully.' ) {
+            if ($status == 'Domain Transfered Successfully.') {
                 $userPackage->setCustomField('Transfer Status', 'Completed');
             }
             return $status;
-        } else if ( isset($result->status) && strtolower($result->status) == 'failed') {
+        } elseif (isset($result->status) && strtolower($result->status) == 'failed') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain transfer failed with error: ' . $result->actiontypedesc);
             throw new Exception('Error transfering ResellerClub domain: ' . $result->actiontypedesc);
         }
         $status = $result->{1}->actionstatusdesc;
-        if ( $status == 'Domain Transfered Successfully.' ) {
+        if ($status == 'Domain Transfered Successfully.') {
             $userPackage->setCustomField('Transfer Status', 'Completed');
         }
 
@@ -722,7 +753,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         }
         if (isset($result->registrantcontact)) {
             $contactId = $result->registrantcontact->contactid;
-        } else if (isset($result->status) && $result->status == 'ERROR') {
+        } elseif (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain registrant contact fetch failed with error: ' . $result->message);
             throw new Exception('Error fetching ResellerClub domain registrant details.: ' . $result->message);
         } else {
@@ -730,7 +761,9 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             throw new Exception('Error fetching ResellerClub domain registrant details.');
         }
 
-        if ($params['Registrant_OrganizationName'] == "") $params['Registrant_OrganizationName'] = "N/A";
+        if ($params['Registrant_OrganizationName'] == "") {
+            $params['Registrant_OrganizationName'] = "N/A";
+        }
 
         $arguments = array(
             'contact-id'            => $contactId,
@@ -950,22 +983,23 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         if (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain search failed with error: ' . $result->message);
             throw new Exception('Error during ResellerClub domain search command.: ' . $result->message);
-        } else if (!isset($result->recsonpage)) {
+        } elseif (!isset($result->recsonpage)) {
             CE_Lib::log(4, 'ERROR: ResellerClub domain search failed with an error.');
             throw new Exception('Error during ResellerClub domain search command.');
         }
+
+        $domainNameGateway = new DomainNameGateway();
 
         $domainsList = array();
         $name = 'entity.description';
         $orderid = 'orders.orderid';
         $expiry = 'orders.endtime';
         for ($i = 1; $i <= $result->recsonpage; $i++) {
-            CE_Lib::log(4, 'Working on domain: ' . $result->$i->$name);
-            $dom = $this->splitDomain($result->$i->$name);
+            $domain = $domainNameGateway->splitDomain($result->$i->$name);
             $domainsList[] = array(
                 'id'    => $result->$i->$orderid,
-                'sld'   => $dom[0],
-                'tld'   => $dom[1],
+                'sld'   => $domain[0],
+                'tld'   => $domain[1],
                 'exp'   => date('m/d/Y', $result->$i->$expiry),
             );
         }
@@ -975,7 +1009,6 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         $metaData['end'] = $page * 25;
         $metaData['next'] = $page * 25 + 1;
         $metaData['numPerPage'] = 25;
-        CE_Lib::log(4, "Returing array of size: " . sizeof($domainsList));
         return array($domainsList, $metaData);
     }
 
@@ -1009,7 +1042,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         if (isset($result->transferlock)) {
             // transfer lock is enabled
             return $result->transferlock;
-        } else if (isset($result->status) && $result->status == 'ERROR') {
+        } elseif (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain registrant contact fetch failed with error: ' . $result->message);
             throw new Exception('Error fetching ResellerClub domain registrant details.: ' . $result->message);
         } else {
@@ -1021,7 +1054,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function doSetRegistrarLock($params)
     {
         $userPackage = new UserPackage($params['userPackageId']);
-        $this->setRegistrarLock($this->buildLockParams($userPackage,$params));
+        $this->setRegistrarLock($this->buildLockParams($userPackage, $params));
         return "Updated Registrar Lock.";
     }
 
@@ -1037,7 +1070,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'order-id'      => $domainId,
         );
 
-        if ( $params['lock'] == true ) {
+        if ($params['lock'] == true) {
             $url = '/domains/enable-theft-protection';
         } else {
             $url = '/domains/disable-theft-protection';
@@ -1049,7 +1082,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
         if (isset($result->status) && $result->status == 'Success') {
             return;
-        } else if (isset($result->status) && $result->status == 'ERROR') {
+        } elseif (isset($result->status) && $result->status == 'ERROR') {
             CE_Lib::log(4, 'ERROR: ResellerClub domain registrant contact fetch failed with error: ' . $result->message);
             throw new Exception('Error fetching ResellerClub domain registrant details.: ' . $result->message);
         } else {
@@ -1065,12 +1098,152 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     function getDNS($params)
     {
-        throw new Exception('Getting DNS Records is not supported in this plugin.', EXCEPTION_CODE_NO_EMAIL);
+        $records = [];
+        foreach ($this->recordTypes as $type) {
+            $result = $this->searchHosts($params, $type);
+            if ($result->recsonpage > 0) {
+                $numberOfRecords = $result->recsonpage;
+                $recordNumber = 1;
+                while ($recordNumber <= $numberOfRecords) {
+                    $records[] = array(
+                        'id'        => count($records)+1,
+                        'hostname'  => $result->$recordNumber->host,
+                        'address'   => $result->$recordNumber->value,
+                        'type'      => $result->$recordNumber->type
+                    );
+                    $recordNumber++;
+                }
+            }
+        }
+        return array('records' => $records, 'types' => $this->recordTypes, 'default' => true);
+    }
+
+    function activateDNSService($params)
+    {
+        $params['sld'] = strtolower($params['sld']);
+        $params['tld'] = strtolower($params['tld']);
+        $domain = $params['sld'].".".$params['tld'];
+
+        $orderId = $this->_lookupDomainId($domain);
+        $arguments = ['order-id' => $orderId];
+        $result = $this->_makePostRequest('/dns/activate', $arguments);
+        if ($result === false) {
+            throw new Exception('A connection issued occurred while connecting to ResellerClub.', EXCEPTION_CODE_CONNECTION_ISSUE);
+        }
+
+        if (strtolower($result->status) == 'success') {
+            return true;
+        }
+        return false;
     }
 
     function setDNS($params)
     {
-        return true;
+        $params['sld'] = strtolower($params['sld']);
+        $params['tld'] = strtolower($params['tld']);
+        $domain = $params['sld'].".".$params['tld'];
+
+        // add some validation
+        foreach ($params['records'] as $record) {
+            $type = $record['type'];
+            $host = $record['hostname'];
+            $ip = $record['address'];
+
+            // CE has hard-coded types right now, and does not support types from the plugin, so lets error if they use certain types
+            if (in_array($type, ['MXE', 'URL', 'FRAME'])) {
+                throw new CE_Exception($this->user->lang('At the present time, a %s record is not supported with ResellerClub.', $record['type']));
+            }
+
+            if ($type == 'A') {
+                if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                    throw new CE_Exception($this->user->lang('Invalid IP address "%s" for record "%s".', $ip, $host));
+                }
+            }
+
+            if ($type == 'AAAA') {
+                if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                    throw new CE_Exception($this->user->lang('Invalid IP address "%s" for record "%s".', $ip, $host));
+                }
+            }
+        }
+
+        // need to delete all records first, then re-add any that we are supplied with.
+        foreach ($this->recordTypes as $type) {
+            $result = $this->searchHosts($params, $type);
+
+            if ($result->recsonpage > 0) {
+                $numberOfRecords = $result->recsonpage;
+                $recordNumber = 1;
+                while ($recordNumber <= $numberOfRecords) {
+                    $arguments = array(
+                        'domain-name'   => $domain,
+                        'host'          => $result->$recordNumber->host,
+                        'value'         => $result->$recordNumber->value
+                    );
+                    $this->_makePostRequest($this->getAddDNSURL($type, 'delete'), $arguments);
+                    $recordNumber++;
+                }
+            }
+        }
+
+        $errors = [];
+        // re-add all that we are supplied with
+        foreach ($params['records'] as $record) {
+            $value = str_replace('&#34;', '', $record['address']);
+            $arguments = array(
+                'domain-name'           => $domain,
+                'value'                 => $value,
+                'host'                  => $record['hostname'],
+                'ttl'                   => 14400
+            );
+
+            $result = $this->_makePostRequest($this->getAddDNSURL($record['type'], 'add'), $arguments);
+            if (strtolower($result->status) == 'failed') {
+                $errors[] = "Error adding {$record['type']} record for\n {$record['hostname']} ($value):\n " . $result->msg;
+            }
+        }
+        if (count($errors) > 0) {
+            throw new CE_Exception(implode("\n\n", $errors));
+        }
+    }
+
+    private function searchHosts($params, $type)
+    {
+        $params['sld'] = strtolower($params['sld']);
+        $params['tld'] = strtolower($params['tld']);
+        $domain = $params['sld'].".".$params['tld'];
+
+        $arguments = array(
+            'domain-name'           => $domain,
+            'type'                  => $type,
+            'no-of-records'         => '50',
+            'page-no'               => '1'
+        );
+        $result = $this->_makeGetRequest('/dns/manage/search-records', $arguments);
+        if ($result === false) {
+            throw new Exception('A connection issued occurred while connecting to ResellerClub.', EXCEPTION_CODE_CONNECTION_ISSUE);
+        } elseif (strtolower($result->status) == 'error' && $result->message == 'You need to activate your FREE DNS Services before you can perform this action') {
+            if ($this->activateDNSService($params) === true) {
+                $this->getDNS($params);
+            }
+        }
+        return $result;
+    }
+
+    private function getAddDNSURL($type, $action)
+    {
+        switch ($type) {
+            case 'A':
+                return "/dns/manage/{$action}-ipv4-record";
+            case 'AAAA':
+                return "/dns/manage/{$action}-ipv6-record";
+            case 'MX':
+                return "/dns/manage/{$action}-mx-record";
+            case 'CNAME':
+                return "/dns/manage/{$action}-cname-record";
+            case 'TXT':
+                return "/dns/manage/{$action}-txt-record";
+        }
     }
 
     function hasPrivacyProtection($contactInfo)
@@ -1092,14 +1265,16 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
     function _makeRequest($servlet, $arguments, $isPost = false)
     {
         $arguments['auth-userid'] = $this->settings->get('plugin_resellerclub_Reseller ID');
-        if ( $this->settings->get('plugin_resellerclub_API Key') != '' ) {
-           $arguments['api-key'] = $this->settings->get('plugin_resellerclub_API Key');
+        if ($this->settings->get('plugin_resellerclub_API Key') != '') {
+            $arguments['api-key'] = $this->settings->get('plugin_resellerclub_API Key');
         } else {
-           $arguments['auth-password'] = $this->settings->get('plugin_resellerclub_Password');
+            $arguments['auth-password'] = $this->settings->get('plugin_resellerclub_Password');
         }
 
         $request = 'https://';
-        if (@$this->settings->get('plugin_resellerclub_Use testing server')) $request .= 'test.';
+        if (@$this->settings->get('plugin_resellerclub_Use testing server')) {
+            $request .= 'test.';
+        }
         $request .= 'httpapi.com/api';
         $request .= $servlet . '.json';
 
@@ -1111,16 +1286,24 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             if (is_array($value)) {
                 // Need to handle arrays
                 foreach ($value as $multivalue) {
-                    if ($multivalue === true) $multivalue = 'true';
-                    else if ($multivalue === false) $multivalue = 'false';
+                    if ($multivalue === true) {
+                        $multivalue = 'true';
+                    } elseif ($multivalue === false) {
+                        $multivalue = 'false';
+                    }
                     $data .= $name . '=' . urlencode($multivalue) . '&';
                 }
             } else {
-                if ($value === true) $value = 'true';
-                else if ($value === false) $value = 'false';
+                if ($value === true) {
+                    $value = 'true';
+                } elseif ($value === false) {
+                    $value = 'false';
+                }
                 $data .= $name . '=' . urlencode($value) . '&';
             }
         }
+
+        $data = rtrim($data, '&');
 
         $postData = false;
         if ($isPost) {
@@ -1132,15 +1315,13 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         CE_Lib::log(4, 'ResellerClub request: ' . $request);
 
         // certificate validation doesn't work well under windows
-		$requestType = ($isPost) ? 'POST' : 'GET';
+        $requestType = ($isPost) ? 'POST' : 'GET';
         $response = NE_Network::curlRequest($this->settings, $request, $postData, false, true, false, $requestType);
 
-        CE_Lib::log(4, 'ResellerClub response: ' . $response);
-
         if (is_a($response, 'CE_Error')) {
-           CE_Lib::log(4, 'Error communicating with ResellerClub: ' . $response->getMessage());
-           throw new Exception('Error communicating with ResellerClub: ' . $response->getMessage());
-        } else if (!$response) {
+            CE_Lib::log(4, 'Error communicating with ResellerClub: ' . $response->getMessage());
+            throw new Exception('Error communicating with ResellerClub: ' . $response->getMessage());
+        } elseif (!$response) {
             CE_Lib::log(4, 'Error communicating with ResellerClub: No response found.');
             throw new Exception('Error communicating with ResellerClub: No response found.');
         }
@@ -1154,7 +1335,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             'username' => $email,
         );
         $result = $this->_makeGetRequest('/customers/details', $arguments);
-		if ($result === false) {
+        if ($result === false) {
             throw new Exception('A connection issued occurred while connecting to ResellerClub.');
         }
 
@@ -1180,9 +1361,16 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             return $result;
         }
         if (isset($result->status) && $result->status == 'ERROR') {
-            if ( isset($result->message) && $result->message == 'Required authentication parameter missing' ) {
+            if (isset($result->message) && strpos($result->message, 'An unexpected error has occurred') !== false) {
+                throw new Exception('An error occurred while connecting to ResellerClub.  Error: ' . $result->message, EXCEPTION_CODE_CONNECTION_ISSUE);
+            }
+
+            if (isset($result->message) && $result->message == 'Required authentication parameter missing') {
                 CE_Lib::log(4, 'ERROR: ResellerClub error occurred while looking up domain id for ' . $domain . '.  Error: ' . $result->message);
                 throw new Exception('An error occurred while connecting to ResellerClub.  Error: ' . $result->message, EXCEPTION_CODE_CONNECTION_ISSUE);
+            } elseif (isset($result->message) && strpos($result->message, "Website doesn't exist for") !== false) {
+                CE_Lib::log(4, "ERROR: $domain does not exist at ResellerClub.");
+                throw new Exception('Domain does not exist anymore');
             } else {
                 CE_Lib::log(4, 'ERROR: ResellerClub error occurred while looking up domain id for ' . $domain . '.  Error: ' . $result->message);
                 throw new CE_Exception('An error occurred while connecting to ResellerClub.  Error: ' . $result->message);
@@ -1276,22 +1464,14 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
         return serialize($dotUs);
     }
 
-    function disableRenewal ($params)
+    function disableRenewal($params)
     {
         throw new Exception('Method disableRenewal() was not implemented yet.');
     }
 
-    function checkNSStatus ($params)
+    function checkNSStatus($params)
     {
         throw new Exception('Method checkNSStatus() was not implemented yet.');
-    }
-
-    function splitDomain($domain)
-    {
-        if (($position = strpos($domain, '.')) === false) {
-            return array($domain, '');
-        }
-        return array(mb_substr($domain, 0, $position), mb_substr($domain, $position + 1));
     }
 
     function disablePrivateRegistration($parmas)
@@ -1301,7 +1481,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     private function getAdminContactId($tld, $contactId)
     {
-        switch ( $tld ) {
+        switch ($tld) {
             case 'eu':
             case 'nz':
             case 'ru':
@@ -1322,7 +1502,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     private function getBillingContactId($tld, $contactId)
     {
-        switch ( $tld ) {
+        switch ($tld) {
             case 'berlin':
             case 'ca':
             case 'eu':
@@ -1340,7 +1520,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
 
     private function getContactType($params)
     {
-        switch($params['tld']) {
+        switch ($params['tld']) {
             case 'ca':
                 $contactType = 'CaContact';
                 break;
@@ -1365,6 +1545,7 @@ class PluginResellerclub extends RegistrarPlugin implements ICanImportDomains
             case 'co.uk':
             case 'org.uk':
             case 'me.uk':
+            case 'uk':
                 $contactType = 'UkContact';
                 break;
             case 'coop':
