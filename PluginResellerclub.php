@@ -340,6 +340,12 @@ class PluginResellerclub extends RegistrarPlugin
         $this->api->setDNS($params);
     }
 
+    function getEPPCode($params)
+    {
+        $info = $this->api->getGeneralInfo($params);
+        return $info['domsecret'];
+    }
+
     function hasPrivacyProtection($contactInfo)
     {
         return ($contactInfo['OrganizationName'][1] == 'PrivacyProtect.org');
