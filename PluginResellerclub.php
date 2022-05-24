@@ -172,7 +172,7 @@ class PluginResellerclub extends RegistrarPlugin
         $userPackage = new UserPackage($params['userPackageId']);
 
         $status = $this->api->getTransferStatus($params, $userPackage->getCustomField('Transfer Status'));
-        if ($status == 'Domain Transfered Successfully.') {
+        if ($status == 'Domain Transferred Successfully.') {
             $userPackage->setCustomField('Transfer Status', 'Completed');
         }
         return $status;
